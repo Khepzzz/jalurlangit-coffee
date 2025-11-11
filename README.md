@@ -45,6 +45,26 @@ Pelanggan dapat melakukan pemesanan, pembayaran, dan memberi ulasan tanpa login 
 5. Migrasi & seeder database  
 `php artisan migrate --seed`
 
-6. Jalankan server lokal  
-`php artisan serve`  
-Buka di browser: **http://localhost:8000**
+---
+
+## ⚠️ Catatan Penting (HTTPS / Hosting)
+
+> **⚠️ Catatan:**  
+> Aplikasi **Jalur Langit Coffee – Self Service System** membutuhkan **koneksi HTTPS (Secure Connection)** agar seluruh fitur berjalan dengan baik, terutama:
+> - Proses **scan QR Code** dan **validasi token pelanggan**.  
+> - Fitur **pembayaran manual** (VA, DANA, QRIS).  
+> - Komunikasi **AJAX** serta penggunaan **middleware token** pada halaman pelanggan.  
+>
+> Jika dijalankan secara **lokal** (menggunakan Laragon), pastikan URL sudah menggunakan **https://**.  
+> Kamu dapat mengaktifkan HTTPS di Laragon dengan langkah berikut:
+>
+> 1. Buka **Laragon → Menu → Apache → SSL → Enable SSL**  
+> 2. Setelah itu, akses aplikasi melalui URL seperti:
+>    ```
+>    https://jalurlangit-coffee.test
+>    ```
+>
+> Jika aplikasi di-deploy ke **hosting**, pastikan server telah memiliki **sertifikat SSL aktif**, agar seluruh fitur dapat berjalan dengan aman, terutama pada proses scan QR dan transaksi pelanggan.
+
+---
+

@@ -1,7 +1,7 @@
 # ☕ Jalur Langit Coffee – Self Service System (Laravel 11)
 
 Aplikasi layanan self-service untuk pelanggan **Jalur Langit Coffee**, dibangun dengan **Laravel 11**.  
-Pelanggan dapat melakukan pemesanan, pembayaran, dan memberi ulasan tanpa login menggunakan **token unik** dari QR Code.
+Pelanggan dapat melakukan pemesanan, pembayaran, dan memberi ulasan tanpa login menggunakan **token unik**.
 
 ---
 

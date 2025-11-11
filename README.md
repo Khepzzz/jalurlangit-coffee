@@ -51,7 +51,7 @@ Pelanggan dapat melakukan pemesanan, pembayaran, dan memberi ulasan tanpa login 
 
 > **⚠️ Catatan:**  
 > Aplikasi **Jalur Langit Coffee – Self Service System** membutuhkan **koneksi HTTPS (Secure Connection)** agar seluruh fitur berjalan dengan baik, terutama:
-> - Proses **scan QR Code** dan **validasi token pelanggan**.  
+> - Proses **Generate Token** dan **validasi token pelanggan**.  
 > - Fitur **pembayaran manual** (VA, DANA, QRIS).  
 > - Komunikasi **AJAX** serta penggunaan **middleware token** pada halaman pelanggan.  
 >

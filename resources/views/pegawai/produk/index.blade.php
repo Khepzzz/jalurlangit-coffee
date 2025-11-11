@@ -1,0 +1,513 @@
+@extends('pegawai.layout')
+
+@section('title', 'Data Produk')
+
+@section('content')
+<h1 class="text-2xl font-bold mb-4">Kelola Produk</h1>
+
+{{-- Form Pencarian dan Tombol Tambah Produk --}}
+<div class="sticky top-0 bg-white z-10 p-3 flex justify-between items-center shadow-md border-b">
+    {{-- Input Pencarian --}}
+    <div class="relative w-[300px]">
+        <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Cari Nama Produk..." 
+            class="w-full border border-gray-300 rounded-xl py-3 pl-12 pr-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+            onkeyup="filterTable()"/>
+        <div class="absolute inset-y-0 left-0 flex items-center pl-3">
+        <svg xmlns="https://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" fill="none"></circle>
+            <line x1="16.5" y1="16.5" x2="22" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+        </svg>
+        </div>
+    </div>
+
+    {{-- Tombol Tambah Produk --}}
+    <button onclick="openModal('tambahModal')" class="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition duration-200">
+        {{-- Icon Tambah (+) --}}
+        <svg xmlns="https://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Tambah Produk
+    </button>
+</div>
+
+{{-- Notifikasi Success --}}
+@if(session('success'))
+    <div id="success-message" class="bg-green-500 text-white p-2 rounded my-2">{{ session('success') }}</div>
+    <script>
+        setTimeout(function() {
+            document.getElementById('success-message').style.display = 'none';
+        }, 5000); 
+    </script>
+@endif
+
+{{-- Tabel Produk --}}
+<div class="border rounded-md shadow-md mt-2">
+    <div class="overflow-x-auto">
+        <div class="max-h-[500px] overflow-y-auto">
+            <table class="w-full min-w-[900px] border">
+                <thead class="bg-gray-200 sticky top-0 z-10">
+                    <tr>
+                        <th class="border px-4 py-2">No</th>
+                        <th class="border px-4 py-2">Nama Produk</th>
+                        <th class="border px-4 py-2">Kategori</th>
+                        <th class="border px-4 py-2">Harga</th>
+                        <th class="border px-4 py-2">Stok</th>
+                        <th class="border px-4 py-2">Deskripsi</th>
+                        <th class="border px-4 py-2">Foto</th>
+                        <th class="border px-4 py-2">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="produkBody" class="divide-y">
+                    @foreach($produk as $index => $item)
+                    <tr class="produk-row" data-page="{{ intval($index / $produk->perPage()) + 1 }}">
+                        <td class="border px-4 py-2">{{ $index + 1 }}</td>
+                        <td class="border px-4 py-2 nama-produk">{{ $item->nama_produk }}</td>
+                        <td class="border px-4 py-2 capitalize">{{ $item->kategori }}</td>
+                        <td class="border px-4 py-2">Rp.{{ number_format($item->harga, 0, ',', '.') }}</td>
+                        <td class="border px-4 py-2 capitalize">{{ $item->stok }}</td>
+                        <td class="border px-4 py-2">{{ $item->deskripsi }}</td>
+                        <td class="border px-4 py-2">
+                            @if($item->gambar_produk)
+                                <img src="{{ asset('storage/' . $item->gambar_produk) }}" alt="Foto Produk" class="w-16 h-16 object-cover">
+                            @else
+                                Tidak ada foto
+                            @endif
+                        </td>
+                        <td class="border px-4 py-2">
+                            <div class="flex items-center justify-center space-x-2">
+                                <button onclick='openEditModal(@json($item))' class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md">Edit</button>
+                                <button onclick="openModalhapus('{{ route('pegawai.produk.destroy', $item->id_produk) }}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md">Hapus</button>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div> 
+    </div>
+</div>
+
+{{-- Custom Pagination --}}
+<div id="custom-pagination" class="mt-4 mb-16 flex justify-center space-x-2">
+    {{-- Pagination will be generated by JavaScript --}}
+</div>
+
+{{-- Original Laravel Pagination (Hidden when searching) --}}
+<div id="laravel-pagination" class="mt-4 mb-16">
+    {{ $produk->links() }}
+</div>
+
+{{-- Modal Tambah Produk --}}
+<div id="tambahModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg w-full max-w-lg shadow-lg relative my-8 mx-auto">
+            <div class="p-4 border-b">
+                <h2 class="text-xl text-center font-bold">Tambah Produk</h2>
+            </div>
+            <div class="p-6 overflow-y-auto" style="max-height: calc(100vh - 200px);">
+                <form id="formTambahProduk" action="{{ route('pegawai.produk.store') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="mb-3">
+                        <label class="block font-medium">Nama Produk</label>
+                        <input type="text" name="nama_produk" placeholder="Nama Produk" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Kategori</label>
+                        <select name="kategori" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                            <option value="">Pilih Kategori</option>
+                            <option value="makanan">Makanan</option>
+                            <option value="minuman">Minuman</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Harga</label>
+                        <input type="number" name="harga" placeholder="Harga" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Stok</label>
+                        <select name="stok" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                            <option value="">Perbarui Stok</option>
+                            <option value="tersedia">Tersedia</option>
+                            <option value="habis">Habis</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Deskripsi</label>
+                        <textarea name="deskripsi" placeholder="Deskripsi" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Foto Produk</label>
+                        <input type="file" name="gambar_produk" accept="image/*" onchange="previewImage(event, 'previewTambah')" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <img id="previewTambah" src="#" alt="Preview Gambar" class="w-32 h-32 object-cover mt-2 rounded hidden">
+                    </div>
+                </form>
+            </div>
+            <div class="p-4 border-t flex justify-end space-x-2 bg-white">
+                <button 
+                    type="button" 
+                    onclick="closeModal('tambahModal')" 
+                    class="flex items-center justify-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition duration-200 w-28">
+                    <span>Batal</span>
+                </button>
+                <button 
+                    type="submit" 
+                    form="formTambahProduk"
+                    class="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition duration-200 w-28">
+                    <span>Simpan</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Edit Produk --}}
+<div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg w-full max-w-lg shadow-lg relative my-8 mx-auto">
+            <div class="p-4 border-b">
+                <h2 class="text-xl text-center font-bold">Edit Produk</h2>
+            </div>
+            <div class="p-6 overflow-y-auto" style="max-height: calc(100vh - 200px);">
+                <form id="editForm" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    @method('PUT')
+                    <div class="mb-3">
+                        <label class="block font-medium">Nama Produk</label>
+                        <input type="text" name="nama_produk" id="editNama" placeholder="Nama Produk" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Kategori</label>
+                        <select name="kategori" id="editKategori" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                            <option value="makanan">Makanan</option>
+                            <option value="minuman">Minuman</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Harga</label>
+                        <input type="number" name="harga" id="editHarga" placeholder="Harga" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Stok</label>
+                        <select name="stok" id="editStok" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                            <option value="tersedia">Tersedia</option>
+                            <option value="habis">Habis</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Deskripsi</label>
+                        <textarea name="deskripsi" id="editDeskripsi" placeholder="Deskripsi" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="block font-medium">Foto Produk (Ganti jika perlu)</label>
+                        <input type="file" name="gambar_produk" accept="image/*" onchange="previewImage(event, 'previewEdit')" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <img id="previewEdit" src="#" alt="Preview Gambar" class="w-32 h-32 object-cover mt-2 rounded hidden">
+                    </div>
+                </form>
+            </div>
+            <div class="p-4 border-t flex justify-end space-x-2 bg-white">
+                <button 
+                    type="button" 
+                    onclick="closeModal('editModal')" 
+                    class="flex items-center justify-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition duration-200 w-28">
+                    <span>Batal</span>
+                </button>
+                <button 
+                    type="submit" 
+                    form="editForm"
+                    class="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition duration-200 w-28">
+                    <span>Update</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Konfirmasi Hapus -->
+<div id="modal-confirm-delete" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm hidden z-50">
+    <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full border border-gray-200 relative">
+        <div class="flex flex-col items-center text-center">
+            <!-- Icon Warning -->
+            <div class="bg-red-100 p-4 rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 5a7 7 0 00-7 7v4a4 4 0 004 4h6a4 4 0 004-4v-4a7 7 0 00-7-7z" />
+                </svg>
+            </div>
+            <!-- Title -->
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Hapus Produk?</h2>
+            <p class="text-gray-500 mb-6">Apakah Anda yakin ingin menghapus produk ini? Tindakan ini tidak dapat dibatalkan.</p>
+        </div>
+        <!-- Actions -->
+        <div class="flex justify-center gap-4 mt-6">
+            <button onclick="closeModalhapus()" class="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition duration-150 w-28">
+                Batal
+            </button>
+            <form id="delete-form" method="POST" class="inline">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-150 w-28">
+                    Hapus
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+{{-- Script Modal --}}
+<script>
+    // Variables for pagination
+    let currentPage = 1;
+    let itemsPerPage = {{ $produk->perPage() }};
+    let totalRows = 0;
+    let filteredRows = [];
+    let isSearchActive = false;
+    
+    // Initialize on document load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize all rows
+        const allRows = document.querySelectorAll('.produk-row');
+        totalRows = allRows.length;
+        
+        // Store original row numbers for reset
+        allRows.forEach((row, index) => {
+            row.setAttribute('data-original-index', index);
+        });
+        
+        // Check if there's a search query in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchQuery = urlParams.get('search');
+        if (searchQuery) {
+            document.getElementById('searchInput').value = searchQuery;
+            filterTable();
+        }
+    });
+    
+    function openModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.remove('hidden');
+        modal.classList.add('block');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling on body
+    }
+
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.add('hidden');
+        modal.classList.remove('block');
+        document.body.style.overflow = ''; // Re-enable scrolling
+    }
+
+    function openEditModal(item) {
+        openModal('editModal');
+        const form = document.getElementById('editForm');
+        form.action = `/pegawai/produk/${item.id_produk}`;
+        document.getElementById('editNama').value = item.nama_produk;
+        document.getElementById('editKategori').value = item.kategori;
+        document.getElementById('editHarga').value = item.harga;
+        document.getElementById('editStok').value = item.stok;
+        document.getElementById('editDeskripsi').value = item.deskripsi;
+
+        // Set gambar default yang lama jika ada
+        const previewImageEdit = document.getElementById('previewEdit');
+        if (item.gambar_produk) {
+            previewImageEdit.src = `/storage/${item.gambar_produk}`;
+            previewImageEdit.classList.remove('hidden');
+        } else {
+            previewImageEdit.classList.add('hidden');
+        }
+    }
+
+    function previewImage(event, previewId) {
+        const reader = new FileReader();
+        reader.onload = function () {
+            const output = document.getElementById(previewId);
+            output.src = reader.result;
+            output.classList.remove('hidden');
+        };
+        reader.readAsDataURL(event.target.files[0]);
+    }
+
+    function openModalhapus(action) {
+        const modal = document.getElementById('modal-confirm-delete');
+        const form = document.getElementById('delete-form');
+        form.action = action; // Set form action sesuai produk yang dipilih
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling on body
+    }
+
+    function closeModalhapus() {
+        const modal = document.getElementById('modal-confirm-delete');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = ''; // Re-enable scrolling
+    }
+
+    function filterTable() {
+        let input = document.getElementById('searchInput').value.toLowerCase();
+        let rows = document.querySelectorAll('.produk-row');
+        
+        // Reset search state if empty
+        if (input === '') {
+            isSearchActive = false;
+            document.getElementById('laravel-pagination').style.display = 'block';
+            document.getElementById('custom-pagination').style.display = 'none';
+            
+            // Restore original pagination
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+            
+            // Reset to first page
+            let paginationLinks = document.querySelectorAll('#laravel-pagination a');
+            if (paginationLinks.length > 0) {
+                let firstPageLink = Array.from(paginationLinks).find(link => 
+                    link.textContent.trim() === '1' || 
+                    link.getAttribute('aria-label') === 'Go to page 1');
+                
+                if (firstPageLink) {
+                    firstPageLink.click();
+                }
+            }
+            
+            return;
+        }
+        
+        // Search is active
+        isSearchActive = true;
+        document.getElementById('laravel-pagination').style.display = 'none';
+        document.getElementById('custom-pagination').style.display = 'flex';
+        
+        // Filter rows and store matches
+        filteredRows = [];
+        rows.forEach(row => {
+            let namaProduk = row.querySelector('.nama-produk').textContent.toLowerCase();
+            if (namaProduk.includes(input)) {
+                filteredRows.push(row);
+            }
+            // Hide all rows initially
+            row.style.display = 'none';
+        });
+        
+        // Update pagination based on filtered results
+        updatePagination();
+        
+        // Show first page of results
+        showPage(1);
+    }
+    
+    function updatePagination() {
+        const paginationContainer = document.getElementById('custom-pagination');
+        paginationContainer.innerHTML = '';
+        
+        // Calculate total pages
+        const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+        if (totalPages === 0) {
+            // No results found
+            paginationContainer.innerHTML = '<p class="text-gray-500">Tidak ada hasil yang ditemukan</p>';
+            return;
+        }
+        
+        // Previous button
+        const prevButton = document.createElement('button');
+        prevButton.innerHTML = '&laquo;';
+        prevButton.className = 'px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 ' + 
+                              (currentPage === 1 ? 'opacity-50 cursor-not-allowed' : '');
+        prevButton.disabled = currentPage === 1;
+        prevButton.addEventListener('click', () => showPage(currentPage - 1));
+        paginationContainer.appendChild(prevButton);
+        
+        // Page buttons
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        
+        // Adjust if we're near the end
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageButton = document.createElement('button');
+            pageButton.textContent = i;
+            pageButton.className = 'px-3 py-1 border border-gray-300 rounded-md ' + 
+                                  (i === currentPage ? 'bg-blue-500 text-white' : 'hover:bg-gray-100');
+            pageButton.addEventListener('click', () => showPage(i));
+            paginationContainer.appendChild(pageButton);
+        }
+        
+        // Next button
+        const nextButton = document.createElement('button');
+        nextButton.innerHTML = '&raquo;';
+        nextButton.className = 'px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 ' +
+                              (currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : '');
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.addEventListener('click', () => showPage(currentPage + 1));
+        paginationContainer.appendChild(nextButton);
+    }
+    
+    function showPage(pageNum) {
+        currentPage = pageNum;
+        
+        if (isSearchActive) {
+            // Hide all rows first
+            document.querySelectorAll('.produk-row').forEach(row => {
+                row.style.display = 'none';
+            });
+            
+            // Calculate which filtered rows to show
+            const startIndex = (pageNum - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredRows.length);
+            
+            // Show only filtered rows for current page
+            for (let i = startIndex; i < endIndex; i++) {
+                filteredRows[i].style.display = '';
+                
+                // Update row numbers sequentially
+                const rowNumberCell = filteredRows[i].querySelector('td:first-child');
+                rowNumberCell.textContent = i + 1;
+            }
+            
+            // Update pagination
+            updatePagination();
+        } else {
+            // Let Laravel's pagination handle normal view
+            let paginationLinks = document.querySelectorAll('#laravel-pagination a');
+            paginationLinks.forEach(link => {
+                if (link.textContent.trim() === pageNum.toString() || 
+                    link.getAttribute('aria-label') === `Go to page ${pageNum}`) {
+                    link.click();
+                }
+            });
+        }
+        
+        // Scroll to top of table
+        document.querySelector('.overflow-y-auto').scrollTop = 0;
+    }
+    
+    // Add event listeners for ESC key to close modals
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeModal('tambahModal');
+            closeModal('editModal');
+            closeModalhapus();
+        }
+    });
+
+    // Function to check if element is in viewport
+    function isInViewport(element) {
+        const rect = element.getBoundingClientRect();
+        return (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
+    }
+    
+    // Initialize custom pagination on page load
+    document.getElementById('custom-pagination').style.display = 'none';
+</script>
+@endsection
